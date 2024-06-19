@@ -16,6 +16,7 @@ use crate::address::{Address, PhysAddr, VirtAddr};
 use crate::cpu::control_regs::{read_cr0, read_cr4};
 use crate::cpu::efer::read_efer;
 use crate::cpu::idt::common::INT_INJ_VECTOR;
+use crate::cpu::line_buffer::LineBuffer;
 use crate::cpu::tss::TSS_LIMIT;
 use crate::cpu::vmsa::{init_guest_vmsa, init_svsm_vmsa};
 use crate::cpu::vmsa::{svsm_code_segment, svsm_data_segment, svsm_gdt_segment, svsm_idt_segment};
@@ -393,6 +394,7 @@ pub struct PerCpu {
     init_shadow_stack: Cell<Option<VirtAddr>>,
     context_switch_stack: Cell<Option<VirtAddr>>,
     ist: IstStacks,
+    ln_buf: RefCell<LineBuffer>,
 
     /// Stack boundaries of the currently running task.
     current_stack: Cell<MemoryRegion<VirtAddr>>,
@@ -427,6 +429,7 @@ impl PerCpu {
             init_shadow_stack: Cell::new(None),
             context_switch_stack: Cell::new(None),
             ist: IstStacks::new(),
+            ln_buf: RefCell::new(LineBuffer::new()),
             current_stack: Cell::new(MemoryRegion::new(VirtAddr::null(), 0)),
         }
     }
@@ -1173,6 +1176,10 @@ impl PerCpu {
         unsafe {
             self.tss.set_rsp0(addr);
         }
+    }
+
+    pub fn get_line_buffer(&self) -> RefMut<'_, LineBuffer> {
+        self.ln_buf.borrow_mut()
     }
 }
 

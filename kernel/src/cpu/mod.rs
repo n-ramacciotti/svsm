@@ -16,6 +16,7 @@ pub mod idt;
 pub mod ipi;
 pub mod irq_state;
 pub mod isst;
+pub mod line_buffer;
 pub mod mem;
 pub mod msr;
 pub mod percpu;
