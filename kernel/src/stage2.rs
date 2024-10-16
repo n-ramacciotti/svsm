@@ -22,17 +22,19 @@ use cpuarch::snp_cpuid::SnpCpuidTable;
 use elf::ElfError;
 use svsm::address::{Address, PhysAddr, VirtAddr};
 use svsm::config::SvsmConfig;
-use svsm::console::install_console_logger;
 use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
 use svsm::cpu::flush_tlb_percpu;
 use svsm::cpu::gdt::GLOBAL_GDT;
 use svsm::cpu::idt::stage2::{early_idt_init, early_idt_init_no_ghcb};
+use svsm::cpu::line_buffer::install_buffer_logger;
 use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
 use svsm::cpu::percpu::{this_cpu, PerCpu, PERCPU_AREAS};
 use svsm::debug::stacktrace::print_stack;
 use svsm::error::SvsmError;
 use svsm::igvm_params::IgvmParams;
 use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init, AllocError};
+use svsm::log_buffer::get_lb;
+use svsm::migrate::MigrateInfo;
 use svsm::mm::pagetable::{paging_init, PTEntryFlags, PageTable};
 use svsm::mm::validate::{
     init_valid_bitmap_alloc, valid_bitmap_addr, valid_bitmap_set_valid_range,
@@ -178,7 +180,7 @@ unsafe fn setup_env(
     }
 
     let debug_serial_port = config.debug_serial_port();
-    install_console_logger("Stage2").expect("Console logger already initialized");
+    install_buffer_logger("Stage2").expect("Console logger already initialized");
     platform
         .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
         .expect("Early environment setup failed");
@@ -597,8 +599,9 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
     );
 
     let valid_bitmap = valid_bitmap_addr();
+    let migrate_info = MigrateInfo::new(VirtAddr::from(valid_bitmap.bits()), get_lb());
 
-    log::info!("Starting SVSM kernel...");
+    log::info!("Starting SVSM kernel...")
 
     // SAFETY: the addreses used to invoke the kernel have been calculated
     // correctly for use in the assembly trampoline.
@@ -610,6 +613,7 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
              in("rax") u64::from(kernel_entry),
              in("rdi") &launch_info,
              in("rsi") valid_bitmap.bits(),
+             in("rdx") &migrate_info,
              options(att_syntax))
     };
 

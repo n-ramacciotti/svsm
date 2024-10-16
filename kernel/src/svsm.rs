@@ -18,17 +18,17 @@ use svsm::address::{Address, PhysAddr, VirtAddr};
 #[cfg(feature = "attest")]
 use svsm::attest::AttestationDriver;
 use svsm::config::SvsmConfig;
-use svsm::console::install_console_logger;
 use svsm::cpu::control_regs::{cr0_init, cr4_init};
 use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
 use svsm::cpu::gdt::GLOBAL_GDT;
 use svsm::cpu::idt::svsm::{early_idt_init, idt_init};
 use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
-use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu, PerCpu, PERCPU_AREAS};
+use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu, this_cpu_shared, current_ghcb, PerCpu, PERCPU_AREAS};
 use svsm::cpu::shadow_stack::{
     determine_cet_support, is_cet_ss_supported, set_cet_ss_enabled, shadow_stack_info, SCetFlags,
     MODE_64BIT, S_CET,
 };
+use svsm::cpu::line_buffer::install_buffer_logger;
 use svsm::cpu::smp::start_secondary_cpus;
 use svsm::cpu::sse::sse_init;
 use svsm::debug::gdbstub::svsm_gdbstub::{debug_break, gdbstub_start};
@@ -38,6 +38,8 @@ use svsm::fs::{initialize_fs, populate_ram_fs};
 use svsm::hyperv::hyperv_setup;
 use svsm::igvm_params::IgvmBox;
 use svsm::kernel_region::new_kernel_region;
+use svsm::log_buffer::migrate_log_buffer;
+use svsm::migrate::MigrateInfo;
 use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init};
 use svsm::mm::memory::init_memory_map;
 use svsm::mm::pagetable::paging_init;
@@ -85,6 +87,7 @@ extern "C" {
  *
  * %rdi  Pointer to the KernelLaunchInfo structure
  * %rsi  Pointer to the valid-bitmap from stage2
+ * %rdx  Pointer to the MigrateInfo from stage2
  */
 global_asm!(
     r#"
@@ -180,11 +183,12 @@ fn init_cpuid_table(addr: VirtAddr) {
     register_cpuid_table(&CPUID_PAGE);
 }
 
-fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> Option<VirtAddr> {
+fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize, mi: &MigrateInfo) -> Option<VirtAddr> {
     let launch_info: KernelLaunchInfo = *li;
     init_platform_type(launch_info.platform_type);
 
     let vb_ptr = core::ptr::NonNull::new(VirtAddr::new(vb_addr).as_mut_ptr::<u64>()).unwrap();
+    let vb_ptr = core::ptr::NonNull::new(mi.bitmap_addr.as_mut_ptr::<u64>()).unwrap();
 
     mapping_info_init(&launch_info);
 
@@ -230,13 +234,15 @@ fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> Option<VirtAddr> {
     determine_cet_support(platform);
     cr4_init(platform);
 
-    install_console_logger("SVSM").expect("Console logger already initialized");
+    //install_console_logger("SVSM").expect("Console logger already initialized");
+    install_buffer_logger("SVSM").expect("Console logger already initialized");
     platform
         .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
         .expect("Early environment setup failed");
 
     memory_init(&launch_info);
     migrate_valid_bitmap().expect("Failed to migrate valid-bitmap");
+    migrate_log_buffer(mi.lb);
 
     let kernel_elf_len = (launch_info.kernel_elf_stage2_virt_end
         - launch_info.kernel_elf_stage2_virt_start) as usize;
@@ -311,8 +317,8 @@ fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize) -> Option<VirtAddr> {
 }
 
 #[no_mangle]
-extern "C" fn svsm_entry(li: &KernelLaunchInfo, vb_addr: usize) -> ! {
-    let ssp_token = svsm_start(li, vb_addr);
+extern "C" fn svsm_entry(li: &KernelLaunchInfo, vb_addr: usize, mi: &MigrateInfo) -> ! {
+    let ssp_token = svsm_start(li, vb_addr, mi);
 
     // Shadow stacks must be enabled once no further function returns are
     // possible.
