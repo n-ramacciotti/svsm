@@ -19,8 +19,16 @@ ifdef RELEASE
 TARGET_PATH=release
 CARGO_ARGS += --release
 XBUILD_ARGS += --release
+ENABLE_CONSOLE_LOG ?= 0
 else
 TARGET_PATH=debug
+ENABLE_CONSOLE_LOG ?= 1
+endif
+
+STAGE2_ARGS =
+ifeq ($(ENABLE_CONSOLE_LOG), 1)
+SVSM_ARGS += --features enable-console-log
+STAGE2_ARGS += --features enable-console-log
 endif
 
 ifdef OFFLINE
@@ -141,7 +149,7 @@ bin/meta.bin: bin/gen_meta bin/print-meta bin
 	./bin/gen_meta $@
 
 bin/stage2.bin: bin
-	cargo build --package svsm --bin stage2 ${CARGO_ARGS} --target=x86_64-unknown-none
+	cargo build --package svsm --bin stage2 ${CARGO_ARGS} ${STAGE2_ARGS} --target=x86_64-unknown-none
 	objcopy -O binary ${STAGE2_ELF} $@
 
 bin/svsm-kernel.elf: bin
