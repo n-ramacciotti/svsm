@@ -66,6 +66,9 @@ use kbs_types::Tee;
 #[cfg(feature = "tls")]
 use getrandom::register_custom_getrandom;
 #[cfg(feature = "tls")]
+#[allow(unused_imports)]
+use svsm::tls::examples::{test_command_server, test_https};
+#[cfg(feature = "tls")]
 use svsm::tls::random::custom_getrandom;
 
 extern "C" {
@@ -397,6 +400,9 @@ pub fn svsm_main(cpu_index: usize) {
         // TLS library uses (for the moment) getrandom crate
         // This is not the final implementation, just a placeholder
         register_custom_getrandom!(custom_getrandom);
+        // Uncomment one of the following lines to run the corresponding test
+        test_https();
+        // test_command_server();
     }
 
     // Start request processing on this CPU if required.
