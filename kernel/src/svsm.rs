@@ -408,6 +408,24 @@ fn svsm_init() {
         // TLS library uses (for the moment) getrandom crate
         // This is not the final implementation, just a placeholder
         register_custom_getrandom!(custom_getrandom);
+        #[cfg(feature = "client")]
+        {
+            log::info!("Starting TLS client tests...");
+            use svsm::tls::examples::test_tls;
+            test_tls();
+            #[cfg(feature = "https")]
+            {
+                log::info!("Starting HTTPS client tests...");
+                use svsm::https::examples::test_https_as_client;
+                test_https_as_client();
+            }
+        }
+        #[cfg(all(feature = "server", feature = "https"))]
+        {
+            log::info!("Starting TLS server tests...");
+            use svsm::https::examples::test_https_as_server;
+            test_https_as_server();
+        }
     }
 
     #[cfg(test)]
