@@ -10,4 +10,5 @@ pub mod connection;
 pub mod error;
 pub mod http;
 pub mod https_peer;
+pub mod examples;
 pub mod random;
