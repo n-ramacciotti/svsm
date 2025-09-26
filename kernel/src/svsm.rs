@@ -397,6 +397,11 @@ pub fn svsm_main(cpu_index: usize) {
         // TLS library uses (for the moment) getrandom crate
         // This is not the final implementation, just a placeholder
         register_custom_getrandom!(custom_getrandom);
+        // Uncomment one of the following lines to run the corresponding test
+        use svsm::tls::examples::test_https;
+        test_https();
+        // use svsm::tls::examples::test_command_server;
+        // test_command_server();
     }
 
     // Start request processing on this CPU if required.
