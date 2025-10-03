@@ -31,6 +31,8 @@ use crate::sev::SevSnpError;
 use crate::syscall::ObjError;
 use crate::task::TaskError;
 use crate::tdx::TdxError;
+#[cfg(feature = "tls")]
+use crate::tls::error::TlsError;
 #[cfg(feature = "virtio-drivers")]
 use crate::virtio::VirtioError;
 #[cfg(feature = "vsock")]
@@ -134,6 +136,9 @@ pub enum SvsmError {
     /// Errors related to vsock.
     #[cfg(feature = "vsock")]
     Vsock(VsockError),
+    // Errors related to TLS.
+    #[cfg(feature = "tls")]
+    Tls(TlsError),
 }
 
 impl From<ElfError> for SvsmError {
@@ -177,6 +182,13 @@ impl From<BlockDeviceError> for SvsmError {
 impl From<VsockError> for SvsmError {
     fn from(err: VsockError) -> Self {
         Self::Vsock(err)
+    }
+}
+
+#[cfg(feature = "tls")]
+impl From<TlsError> for SvsmError {
+    fn from(err: TlsError) -> Self {
+        Self::Tls(err)
     }
 }
 
