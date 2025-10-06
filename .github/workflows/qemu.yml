@@ -2,9 +2,9 @@ name: qemu
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" , "branch_with_external_pr" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" , "branch_with_external_pr" ]
 
 env:
   CARGO_TERM_COLOR: always
