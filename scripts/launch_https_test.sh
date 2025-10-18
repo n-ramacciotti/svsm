@@ -77,7 +77,7 @@ done
 if [ "$GEN_CERTS" = true ]; then
     rm -rf "$OUTPUT_DIR"
     echo "[*] Generating new certificates..."
-    "$SCRIPT_DIR/gen_ca_server_certs.sh"
+    "$SCRIPT_DIR/gen_certs.sh"
 else    
     if [ ! -f "$CA_CERT" ] || [ ! -f "$SERVER_CERT" ] || [ ! -f "$SERVER_KEY" ]; then
         echo "Error: Certificates not found in $OUTPUT_DIR. Please run without --no-gen-certs to generate them."
