@@ -77,7 +77,7 @@ fn insert_ca_cert() {
         .parent()
         .expect("Failed to get parent directory")
         .join("scripts")
-        .join("gen_ca_server_certs.sh");
+        .join("gen_certs.sh");
 
     let status = std::process::Command::new("sh")
         .arg(&script_path)

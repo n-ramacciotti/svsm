@@ -8,6 +8,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use alloc::vec;
 
 use super::buffer::TlsBuffer;
 use super::constant::{HEADER_LEN, IN_BUF_SIZE, OUT_BUF_SIZE};
@@ -20,7 +21,7 @@ use crate::io::{Read, Write};
 use crate::vsock::virtio_vsock::VsockStream;
 
 use rustls::client::{ClientConnectionData, UnbufferedClientConnection};
-use rustls::pki_types::{CertificateDer, DnsName, ServerName};
+use rustls::pki_types::{pem::PemObject, CertificateDer, DnsName, PrivateKeyDer, ServerName};
 use rustls::unbuffered::{
     AppDataRecord, ConnectionState, EncodeTlsData, UnbufferedStatus, WriteTraffic,
 };
@@ -69,11 +70,20 @@ impl TlsClient {
             "../../../certificates/ca.der"
         )))?;
 
+        let cert_chain = vec![CertificateDer::from_slice(include_bytes!(
+            "../../../certificates/client.der"
+        ))];
+
+        let key_der =
+            PrivateKeyDer::from_pem_slice(include_bytes!("../../../certificates/client.key"))
+                .map_err(|_| TlsError::GenericError)?;
+
         let mut config = Arc::new(
             ClientConfig::builder_with_details(crypto_provider, time_provider)
                 .with_protocol_versions(&[&rustls::version::TLS13])?
                 .with_root_certificates(root_store)
-                .with_no_client_auth(),
+                .with_client_auth_cert(cert_chain, key_der)
+                .expect("Client auth cert failed"),
         );
 
         if debug_info {

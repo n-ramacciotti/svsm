@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e 
+set -e
 # --- Create output directory --- 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 OUTPUT_DIR="$(realpath "$SCRIPT_DIR/../certificates")"
@@ -19,7 +19,9 @@ SERVER_COUNTRY="IT"
 SERVER_ORG="TestServer" 
 SERVER_STATE="Italy"
 SERVER_LOCALITY="Pisa"
-SERVER_VALIDITY_DAYS=365 
+SERVER_VALIDITY_DAYS=365
+CLIENT_NAME="client"
+CLIENT_VALIDITY_DAYS=365
 
 # File output 
 CA_KEY="$OUTPUT_DIR/ca.key" 
@@ -28,7 +30,16 @@ CA_DER="$OUTPUT_DIR/ca.der"
 SERVER_KEY="$OUTPUT_DIR/server.key" 
 SERVER_CSR="$OUTPUT_DIR/server.csr" 
 SERVER_CERT="$OUTPUT_DIR/server.crt" 
-SERVER_EXT="$OUTPUT_DIR/server_ext.cnf" 
+SERVER_EXT="$OUTPUT_DIR/server_ext.cnf"
+CLIENT_EXT="$OUTPUT_DIR/client_ext.cnf"
+CLIENT_KEY="$OUTPUT_DIR/client.key"
+CLIENT_CSR="$OUTPUT_DIR/client.csr"
+CLIENT_CERT="$OUTPUT_DIR/client.crt"
+CLIENT_DER="$OUTPUT_DIR/client.der"
+
+# Temporary files
+CLIENT_EXT_FILE=$(mktemp)
+CLIENT_KEY_TMP=$(mktemp)
 
 # --- 1. Create CA private key --- 
 echo "Creating CA private key..." 
@@ -89,8 +100,64 @@ openssl x509 -req \
     -sha256 \
     -extfile "$SERVER_EXT"
 
+
+# --- 8. Generate client certificate ---
+echo "Generating client certificate..."
+echo "Generating client private key..."
+openssl ecparam -name prime256v1 -genkey -noout -out "$CLIENT_KEY"
+
+openssl pkcs8 -topk8 \
+    -inform PEM -outform PEM \
+    -in "$CLIENT_KEY" \
+    -out "$CLIENT_KEY_TMP" \
+    -nocrypt
+
+mv "$CLIENT_KEY_TMP" "$CLIENT_KEY"
+
+# --- 9. Create client CSR ---
+echo "Creating client CSR..."
+openssl req -new \
+    -key "$CLIENT_KEY" \
+    -out "$CLIENT_CSR" \
+    -subj "/CN=$CLIENT_NAME"
+
+# --- 10. Create client extensions file ---
+echo "Creating client extensions file..."
+cat > "$CLIENT_EXT_FILE" <<EOF
+[client_ext]
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature
+extendedKeyUsage=clientAuth
+EOF
+
+# --- 11. Sign client certificate with CA ---
+echo "Signing client certificate with CA..."
+openssl x509 -req \
+    -in "$CLIENT_CSR" \
+    -CA "$CA_CERT" \
+    -CAkey "$CA_KEY" \
+    -CAcreateserial \
+    -out "$CLIENT_CERT" \
+    -days "$CLIENT_VALIDITY_DAYS" \
+    -sha256 \
+    -extfile "$CLIENT_EXT_FILE" \
+    -extensions client_ext
+
+# --- 12. Convert client certificate to DER ---
+echo "Converting client certificate to DER format..."
+openssl x509 \
+    -in "$CLIENT_CERT" \
+    -outform DER \
+    -out "$CLIENT_DER"
+
+# --- 13. Cleanup temporary files ---
+rm -f "$SERVER_CSR" "$SERVER_EXT" "$CLIENT_CSR" "$CLIENT_EXT_FILE" "$CA_CERT.srl"
+
 echo "=== Operation completed ==="
 echo "CA certificate: $CA_CERT"
 echo "CA certificate (DER): $CA_DER"
 echo "Server certificate: $SERVER_CERT"
 echo "Server private key: $SERVER_KEY"
+echo "Client certificate: $CLIENT_CERT"
+echo "Client certificate (DER): $CLIENT_DER"
+echo "Client private key: $CLIENT_KEY"
