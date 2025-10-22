@@ -4,7 +4,6 @@
 //
 // Author: Vasant Karasulli <vkarasulli@suse.de>
 
-#[cfg(test)]
 extern crate alloc;
 use core::fmt::Debug;
 
@@ -16,13 +15,11 @@ use crate::types::LINE_BUFFER_SIZE;
 use crate::types::PAGE_SIZE;
 use crate::utils::StringRingBuffer;
 
-#[cfg(test)]
 use alloc::vec;
-#[cfg(test)]
 use alloc::vec::Vec;
 
 #[cfg(not(test))]
-const BUF_SIZE: usize = PAGE_SIZE / core::mem::size_of::<char>();
+const BUF_SIZE: usize = 4 * PAGE_SIZE / core::mem::size_of::<char>();
 #[cfg(test)]
 const BUF_SIZE: usize = 64;
 
@@ -46,7 +43,6 @@ impl LogBuffer {
         self.buf.write(s.iter());
     }
 
-    #[cfg(test)]
     pub fn read_log(&mut self) -> Vec<u8> {
         if let Some(str) = self.buf.read() {
             str.as_bytes().to_vec()

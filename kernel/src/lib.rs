@@ -49,6 +49,7 @@ pub mod tdx;
 pub mod tls;
 pub mod types;
 pub mod utils;
+pub mod string;
 #[cfg(feature = "virtio-drivers")]
 pub mod virtio;
 pub mod vmm;

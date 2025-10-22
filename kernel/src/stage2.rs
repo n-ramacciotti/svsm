@@ -180,7 +180,7 @@ unsafe fn setup_env(
     }
 
     let debug_serial_port = config.debug_serial_port();
-    install_buffer_logger("Stage2").expect("Console logger already initialized");
+
     platform
         .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
         .expect("Early environment setup failed");
@@ -237,7 +237,7 @@ unsafe fn setup_env(
     setup_stage2_allocator(STAGE2_HEAP_START.into(), STAGE2_HEAP_END.into());
 
     init_percpu(platform).expect("Failed to initialize per-cpu area");
-
+    install_buffer_logger("Stage2").expect("Console logger already initialized");
     // Init IDT again with handlers requiring GHCB (eg. #VC handler)
     // Must be done after init_percpu() to catch early #PFs
     //
@@ -601,7 +601,7 @@ pub extern "C" fn stage2_main(launch_info: &Stage2LaunchInfo) -> ! {
     let valid_bitmap = valid_bitmap_addr();
     let migrate_info = MigrateInfo::new(VirtAddr::from(valid_bitmap.bits()), get_lb());
 
-    log::info!("Starting SVSM kernel...")
+    log::info!("Starting SVSM kernel...");
 
     // SAFETY: the addreses used to invoke the kernel have been calculated
     // correctly for use in the assembly trampoline.

@@ -50,7 +50,7 @@ impl Default for LineBuffer {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct BufferLogger {
     component: &'static str,
 }
@@ -68,7 +68,10 @@ impl log::Log for BufferLogger {
 
     fn log(&self, record: &log::Record<'_>) {
         let comp: &'static str = self.component;
-        let line_buf = &mut this_cpu().get_line_buffer();
+        let Ok(mut line_buf ) = this_cpu().get_line_buffer() else {
+            _print(format_args!("Errore durante il borrow"));
+            panic!("prova")
+        };
         // Log format/detail depends on the level.
         let rec_args = record.args();
         let lvl = record.metadata().level().as_str();
@@ -112,7 +115,7 @@ impl log::Log for BufferLogger {
 static BUFFER_LOGGER: ImmutAfterInitCell<BufferLogger> = ImmutAfterInitCell::uninit();
 
 pub fn install_buffer_logger(component: &'static str) -> ImmutAfterInitResult<()> {
-    BUFFER_LOGGER.init(&BufferLogger::new(component))?;
+    BUFFER_LOGGER.init(BufferLogger::new(component))?;
 
     if let Err(e) = log::set_logger(&*BUFFER_LOGGER) {
         // Failed to install the BufferLogger, presumably because something had

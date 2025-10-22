@@ -23,7 +23,7 @@ use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
 use svsm::cpu::gdt::GLOBAL_GDT;
 use svsm::cpu::idt::svsm::{early_idt_init, idt_init};
 use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
-use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu, this_cpu_shared, current_ghcb, PerCpu, PERCPU_AREAS};
+use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu,  PerCpu, PERCPU_AREAS};
 use svsm::cpu::shadow_stack::{
     determine_cet_support, is_cet_ss_supported, set_cet_ss_enabled, shadow_stack_info, SCetFlags,
     MODE_64BIT, S_CET,
@@ -188,7 +188,6 @@ fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize, mi: &MigrateInfo) -> Option
     init_platform_type(launch_info.platform_type);
 
     let vb_ptr = core::ptr::NonNull::new(VirtAddr::new(vb_addr).as_mut_ptr::<u64>()).unwrap();
-    let vb_ptr = core::ptr::NonNull::new(mi.bitmap_addr.as_mut_ptr::<u64>()).unwrap();
 
     mapping_info_init(&launch_info);
 
@@ -235,10 +234,10 @@ fn svsm_start(li: &KernelLaunchInfo, vb_addr: usize, mi: &MigrateInfo) -> Option
     cr4_init(platform);
 
     //install_console_logger("SVSM").expect("Console logger already initialized");
-    install_buffer_logger("SVSM").expect("Console logger already initialized");
     platform
         .env_setup(debug_serial_port, launch_info.vtom.try_into().unwrap())
         .expect("Early environment setup failed");
+    install_buffer_logger("SVSM").expect("Buffer logger already initialized");
 
     memory_init(&launch_info);
     migrate_valid_bitmap().expect("Failed to migrate valid-bitmap");
@@ -453,6 +452,10 @@ fn svsm_init() {
         use svsm::fs::opendir;
         use svsm::requests::request_loop_start;
         use svsm::task::exec_user;
+        
+        log::info!("########################");
+        let log = svsm::log_buffer::log_buffer().read_log();
+        svsm::println!("SVSM Log Buffer:\n{}", String::from_utf8_lossy(&log));
 
         match exec_user("/init", opendir("/").expect("Failed to find FS root")) {
             Ok(_) => (),
