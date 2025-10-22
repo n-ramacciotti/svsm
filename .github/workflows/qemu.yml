@@ -88,6 +88,7 @@ jobs:
           PKG_CONFIG_PATH="$OUT/lib64/pkgconfig" ./configure \
             --target-list=x86_64-softmmu \
             --enable-igvm --extra-ldflags=-L"$OUT/lib64" \
+            --enable-vhost-kernel \
             --extra-cflags=-I"$OUT/include" \
             --enable-tcg \
             --enable-kvm \
