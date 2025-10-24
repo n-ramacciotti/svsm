@@ -41,6 +41,8 @@ pub mod svsm_paging;
 pub mod syscall;
 pub mod task;
 pub mod tdx;
+#[cfg(feature = "tls")]
+pub mod tls;
 pub mod types;
 pub mod utils;
 #[cfg(feature = "virtio-drivers")]
