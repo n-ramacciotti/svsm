@@ -117,6 +117,8 @@ jobs:
         run: make bin/coconut-test-qemu.igvm
 
       ########################
+      - name: Install socat
+        run: sudo apt install -y socat
 
       - name: Run test-in-svsm in QEMU
         run: |

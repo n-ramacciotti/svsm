@@ -29,7 +29,9 @@ test_io(){
               sha256sum "$TEST_DIR/svsm_state.raw" | cut -f 1 -d ' ' | xxd -p -r > "$PIPE_IN"
               ;;
             "03")
-              echo -n "hello_world" | nc -l --vsock 12345 &
+              socat VSOCK-LISTEN:12345,reuseaddr,fork TCP:localhost:4433 &
+              sleep 1
+              echo -n "hello_world" | nc -l 4433 &
               sleep 1
               echo -n "0" > $PIPE_IN
               ;;
