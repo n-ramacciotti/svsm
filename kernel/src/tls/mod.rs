@@ -8,4 +8,6 @@ mod time_provider;
 // Public modules for TLS implementation
 pub mod connection;
 pub mod error;
+pub mod http;
+pub mod https_peer;
 pub mod random;

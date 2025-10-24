@@ -1,3 +1,4 @@
+use super::http::error::HttpError;
 /// Errors specific to TLS operations
 #[derive(Clone, Copy, Debug)]
 pub enum TlsError {
@@ -22,6 +23,7 @@ pub enum TlsError {
     PeerClosed,
     RequestAlreadySent,
     ConnectionAlreadyClosed,
+    Http(HttpError),
 }
 
 impl From<rustls::pki_types::InvalidDnsNameError> for TlsError {
@@ -70,5 +72,11 @@ impl From<rustls::unbuffered::EncodeError> for TlsError {
 impl From<rustls::unbuffered::EncryptError> for TlsError {
     fn from(_err: rustls::unbuffered::EncryptError) -> Self {
         TlsError::EncryptError
+    }
+}
+
+impl From<HttpError> for TlsError {
+    fn from(err: HttpError) -> Self {
+        TlsError::Http(err)
     }
 }
