@@ -15,6 +15,7 @@ print-meta
 cbit
 .idea/
 testkeys/
+certificates/
 
 # local fuzzing artifacts
 **/fuzz/target
