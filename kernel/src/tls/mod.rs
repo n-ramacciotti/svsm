@@ -9,3 +9,4 @@ mod time_provider;
 pub mod connection;
 pub mod error;
 pub mod random;
+pub use constants::MAX_TLS_RECORD_LEN;
