@@ -67,13 +67,31 @@ verify_proof = { workspace = true, optional = true}
 verify_external = { workspace = true, optional = true}
 verus_stub = { workspace = true }
 
+rustls = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, features = ["custom"] }
+hmac = { workspace = true, optional = true }
+ecdsa = { workspace = true, optional = true, features = ["pem"] }
+der =  { workspace = true, optional = true, features = ["alloc"] }
+p256 = { workspace = true, optional = true, features = ["alloc", "ecdsa", "pkcs8"] }
+pkcs8 = { workspace = true, optional = true, features = ["alloc"] }
+rsa = { workspace = true, optional = true, features = ["sha2"] }
+signature = { workspace = true, optional = true }
+x25519-dalek =  { workspace = true, optional = true }
+rand_core = { workspace = true, optional = true, features= ["getrandom"] }
+httparse = { workspace = true, optional = true }
+hashbrown = { workspace = true, optional = true , features= ["default-hasher", "inline-more", "alloc", "core"]}
+
 [target."x86_64-unknown-none".dev-dependencies]
 test.workspace = true
 
 [features]
 attest = ["dep:aes", "dep:base64", "dep:cocoon-tpm-crypto", "dep:cocoon-tpm-tpm2-interface", "dep:cocoon-tpm-utils-common", "dep:kbs-types", "dep:libaproxy", "dep:serde", "dep:serde_json"]
 vsock = []
-
+tls = ["dep:rustls", "dep:getrandom", "rustcrypto", "virtio-drivers", "vsock", "http"]
+http = ["dep:httparse", "dep:hashbrown"]
+client = []
+server = []
+rustcrypto = ["dep:hmac", "dep:ecdsa", "dep:der", "dep:p256", "dep:pkcs8", "dep:rsa", "dep:signature", "dep:x25519-dalek", "dep:rand_core","dep:aes"]
 default = []
 enable-gdb = ["dep:gdbstub", "dep:gdbstub_arch"]
 vtpm = ["dep:libtcgtpm"]

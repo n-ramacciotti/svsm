@@ -63,6 +63,11 @@ use release::COCONUT_VERSION;
 #[cfg(feature = "attest")]
 use kbs_types::Tee;
 
+#[cfg(feature = "tls")]
+use getrandom::register_custom_getrandom;
+#[cfg(feature = "tls")]
+use svsm::tls::random::custom_getrandom;
+
 extern "C" {
     static bsp_stack: u8;
     static bsp_stack_end: u8;
@@ -383,6 +388,29 @@ pub fn svsm_main(cpu_index: usize) {
     match exec_user("/init", opendir("/").expect("Failed to find FS root")) {
         Ok(_) => (),
         Err(e) => log::info!("Failed to launch /init: {e:?}"),
+    }
+
+    #[cfg(feature = "tls")]
+    {
+        // Register the custom getrandom implementation for SVSM
+        // This is required for TLS to work
+        // TLS library uses (for the moment) getrandom crate
+        // This is not the final implementation, just a placeholder
+        register_custom_getrandom!(custom_getrandom);
+        #[cfg(feature = "client")]
+        {
+            log::info!("Starting TLS client tests...");
+            use svsm::tls::examples::test_tls;
+            test_tls();
+            use svsm::tls::examples::test_https_as_client;
+            test_https_as_client();
+        }
+        #[cfg(feature = "server")]
+        {
+            log::info!("Starting TLS server tests...");
+            use svsm::tls::examples::test_https_as_server;
+            test_https_as_server();
+        }
     }
 
     // Start request processing on this CPU if required.
