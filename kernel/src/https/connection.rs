@@ -219,3 +219,90 @@ impl HttpsConnection {
         Ok(content_length)
     }
 }
+
+#[cfg(all(test, test_in_svsm))]
+mod tests {
+    use super::*;
+    use crate::https::http::request::HttpRequestBuilder;
+    use crate::testutils::has_test_iorequests;
+    use crate::tls::MAX_TLS_RECORD_LEN;
+
+    fn start_tls_server_host() {
+        use crate::serial::Terminal;
+        use crate::testing::{svsm_test_io, IORequest};
+
+        let sp = svsm_test_io().unwrap();
+
+        sp.put_byte(IORequest::StartTlsServer as u8);
+
+        let _ = sp.get_byte();
+    }
+
+    fn get_vsock_stream() -> VsockStream {
+        let cid = 2;
+        let remote_port = 12346;
+
+        VsockStream::connect(remote_port, cid).expect("Failed to connect to vsock server")
+    }
+
+    fn get_https_connection() -> HttpsConnection {
+        let servername = "localhost";
+        let sock = get_vsock_stream();
+        HttpsPeer::connect(sock, servername, MAX_TLS_RECORD_LEN * 2)
+            .expect("Failed to create HTTPS connection")
+    }
+
+    #[test]
+    #[cfg_attr(not(test_in_svsm), ignore = "Can only be run inside guest")]
+    fn test_https_client() {
+        if !has_test_iorequests() {
+            return;
+        }
+
+        start_tls_server_host();
+
+        let mut https_connection = get_https_connection();
+
+        let http_request = HttpRequestBuilder::new()
+            .method(Some("GET"))
+            .path(Some("/"))
+            .version(Some(1))
+            .header("Host", "localhost")
+            .header("Connection", "close")
+            .body(Vec::new())
+            .build()
+            .expect("Failed to build HTTP request");
+
+        https_connection
+            .send_request(&http_request)
+            .expect("Failed to send HTTP request");
+
+        https_connection
+            .send_request(&http_request)
+            .expect_err("Sending a second request without reading the response should fail");
+
+        let _response = https_connection
+            .receive_response()
+            .expect("Failed to receive HTTP response");
+
+        https_connection
+            .receive_response()
+            .expect_err("Receiving a second response without sending a new request should fail");
+
+        https_connection
+            .close_connection()
+            .expect("Failed to close HTTPS connection");
+
+        https_connection
+            .close_connection()
+            .expect("A second close should succeed");
+
+        https_connection
+            .send_request(&http_request)
+            .expect_err("Sending request after closing should fail");
+
+        https_connection
+            .receive_response()
+            .expect_err("Receiving response after closing should fail");
+    }
+}

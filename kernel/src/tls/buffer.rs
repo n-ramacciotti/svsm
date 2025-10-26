@@ -143,3 +143,117 @@ impl TlsBuffer {
         self.head = 0;
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_tls_buffer_creation() {
+        let tls_buffer = TlsBuffer::new(1024);
+        assert_eq!(tls_buffer.buf.len(), 1024);
+        assert_eq!(tls_buffer.head, 0);
+        assert_eq!(tls_buffer.tail, 0);
+    }
+
+    #[test]
+    fn test_tls_buffer_move_tail() {
+        let mut tls_buffer = TlsBuffer::new(10);
+        tls_buffer.advance_used(3).expect("Advance used failed");
+        assert_eq!(tls_buffer.tail, 3);
+
+        tls_buffer
+            .advance_used(100)
+            .expect_err("Expected error for advancing beyond buffer size");
+        assert_eq!(tls_buffer.tail, 3); // tail should remain unchanged
+    }
+
+    #[test]
+    fn test_tls_buffer_move_head() {
+        let mut tls_buffer = TlsBuffer::new(10);
+        tls_buffer.advance_used(10).expect("Tail advance failed");
+
+        tls_buffer.move_head(2);
+        assert_eq!(tls_buffer.head, 2);
+        tls_buffer.move_head(5);
+        assert_eq!(tls_buffer.head, 7);
+        tls_buffer.move_head(5); // move beyond tail
+        assert_eq!(tls_buffer.head, 10); // head should not exceed tail
+    }
+
+    #[test]
+    fn test_tls_buffer_compact() {
+        let mut tls_buffer = TlsBuffer::new(10);
+        tls_buffer.buf[..5].copy_from_slice(&[1, 2, 3, 4, 5]);
+        tls_buffer.head = 2;
+        tls_buffer.tail = 5;
+        tls_buffer.compact();
+        assert_eq!(tls_buffer.head, 0);
+        assert_eq!(tls_buffer.tail, 3);
+        assert_eq!(&tls_buffer.buf[..3], &[3, 4, 5]);
+    }
+
+    #[test]
+    fn test_tls_buffer_ensure_space() {
+        let mut tls_buffer = TlsBuffer::new(10);
+
+        tls_buffer
+            .ensure_space(5)
+            .expect("Should have enough space");
+        assert_eq!(tls_buffer.tail, 0);
+        assert_eq!(tls_buffer.head, 0);
+
+        tls_buffer.advance_used(5).expect("Tail advance failed");
+
+        tls_buffer
+            .ensure_space(6)
+            .expect_err("Should not have enough space");
+
+        tls_buffer.move_head(3);
+        tls_buffer
+            .ensure_space(6)
+            .expect("Should have enough space after compacting");
+    }
+
+    #[test]
+    fn test_tls_buffer_check_record_fields() {
+        let mut tls_buffer = TlsBuffer::new(10);
+        // Example TLS record header: ContentType=0x16 (handshake), Version=0x0303 (TLS 1.2), Length=0x0010 (16)
+        tls_buffer.buf[..5].copy_from_slice(&[0x16, 0x03, 0x03, 0x00, 0x10]);
+
+        let record_len = tls_buffer
+            .extract_record_len_from_current_position()
+            .expect("Extract record length failed");
+        assert_eq!(record_len, 16);
+
+        // Test with invalid content type
+        tls_buffer.buf[..5].copy_from_slice(&[0xFF, 0x03, 0x03, 0x00, 0x10]);
+        let err = tls_buffer
+            .extract_record_len_from_current_position()
+            .expect_err("Expected error for invalid content type");
+        match err {
+            TlsError::InvalidContentType => {}
+            _ => panic!("Unexpected error type"),
+        }
+        // Test with invalid version
+        tls_buffer.buf[..5].copy_from_slice(&[0x16, 0xFF, 0xFF, 0x00, 0x10]);
+        let err = tls_buffer
+            .extract_record_len_from_current_position()
+            .expect_err("Expected error for invalid version");
+        match err {
+            TlsError::InvalidRecordVersion => {}
+            _ => panic!("Unexpected error type"),
+        }
+
+        // Test with invalid length
+        tls_buffer.buf[..5].copy_from_slice(&[0x16, 0x03, 0x03, 0xFF, 0xFF]);
+        let err = tls_buffer
+            .extract_record_len_from_current_position()
+            .expect_err("Expected error for invalid length");
+        match err {
+            TlsError::InvalidRecordLength => {}
+            _ => panic!("Unexpected error type"),
+        }
+    }
+}

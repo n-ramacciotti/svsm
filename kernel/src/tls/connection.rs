@@ -458,3 +458,115 @@ impl ConnectionDetails {
         }
     }
 }
+
+#[cfg(all(test, test_in_svsm))]
+mod tests {
+    use super::*;
+    use crate::testutils::has_test_iorequests;
+
+    fn start_tls_server_host() {
+        use crate::serial::Terminal;
+        use crate::testing::{svsm_test_io, IORequest};
+
+        let sp = svsm_test_io().unwrap();
+
+        sp.put_byte(IORequest::StartTlsServer as u8);
+
+        let _ = sp.get_byte();
+    }
+
+    fn get_vsock_stream() -> VsockStream {
+        let cid = 2;
+        let remote_port = 12346;
+
+        VsockStream::connect(remote_port, cid).expect("Failed to connect to vsock server")
+    }
+
+    fn get_tls_connection() -> TlsConnection {
+        let servername = "localhost";
+        let sock = get_vsock_stream();
+        let tls_client = TlsClient::new(false);
+        tls_client
+            .connect(sock, servername)
+            .expect("Failed to create TLS connection")
+    }
+
+    #[test]
+    #[cfg_attr(not(test_in_svsm), ignore = "Can only be run inside guest")]
+    fn test_tls_client() {
+        if !has_test_iorequests() {
+            return;
+        }
+
+        start_tls_server_host();
+
+        let mut tls_connection = get_tls_connection();
+
+        tls_connection
+            .read_tls(&mut [0u8; 4096])
+            .expect_err("Reading before handshake should fail.");
+
+        tls_connection
+            .write_tls(b"Hello")
+            .expect_err("Writing before handshake should fail.");
+
+        tls_connection
+            .close_tls()
+            .expect_err("Closing before handshake should fail.");
+
+        tls_connection
+            .complete_handshake()
+            .expect("Failed to complete TLS handshake");
+
+        let err = tls_connection
+            .complete_handshake()
+            .expect_err("Handshake should already be complete, but it succeeded.");
+
+        match err {
+            SvsmError::Tls(TlsError::HandshakeAlreadyComplete) => {}
+            _ => panic!("Unexpected error type: {:?}", err),
+        }
+
+        let http_request = b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+
+        tls_connection
+            .write_tls(http_request)
+            .expect("Failed to send HTTP request");
+
+        let mut response_buffer = [0u8; 4096];
+
+        // Response expected to be sent in a single read
+        let _n_bytes = tls_connection
+            .read_tls(&mut response_buffer)
+            .expect("Failed to read HTTP response");
+
+        let expected_response_start = b"HTTP/1.1 200 OK";
+
+        assert_eq!(
+            &response_buffer[..expected_response_start.len()],
+            expected_response_start
+        );
+
+        tls_connection
+            .close_tls()
+            .expect("Failed to close TLS connection");
+
+        tls_connection
+            .close_tls()
+            .expect("Closing an already closed connection should succeed.");
+
+        let err = tls_connection
+            .write_tls(http_request)
+            .expect_err("Writing to a closed connection should fail.");
+
+        match err {
+            SvsmError::Tls(TlsError::ConnectionClosed) => {}
+            _ => panic!("Unexpected error type: {:?}", err),
+        }
+
+        let n_reads = tls_connection
+            .read_tls(&mut response_buffer)
+            .expect("Reading from a closed connection should succeed.");
+        assert_eq!(n_reads, 0, "Expected 0 bytes read from closed connection");
+    }
+}
