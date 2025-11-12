@@ -25,6 +25,14 @@ use crate::protocols::{
 
 use alloc::vec::Vec;
 
+#[cfg(feature = "svsm-remote-console")]
+use crate::https::{
+    connection::{HttpsConnection, HttpsPeer},
+    http::response::HttpResponseBuilder,
+};
+#[cfg(feature = "svsm-remote-console")]
+use crate::vsock::stream::VsockStream;
+
 /// The SVSM Calling Area (CAA)
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
@@ -116,6 +124,16 @@ fn request_loop_main(cpu_index: usize) {
     // other CPUs have done the same.
     wait_for_ipi_block();
 
+    #[cfg(feature = "svsm-remote-console")]
+    {
+        let cpu_count = PERCPU_AREAS.len();
+        if cpu_count > 1 && cpu_index == cpu_count - 1 {
+            svsm_remote_console_server(cpu_index);
+            log::info!("Remote console server on CPU {} exiting", cpu_index);
+            return;
+        }
+    }
+
     let mut guest_regs = Vec::<GuestRegister>::new();
 
     loop {
@@ -165,4 +183,135 @@ fn process_request(protocol: u32, request: u32, params: &mut RequestParams) -> V
     params.capture(&mut guest_regs);
 
     guest_regs
+}
+
+#[cfg(feature = "svsm-remote-console")]
+fn serve_request_loop(https_connection: &mut HttpsConnection) {
+    loop {
+        let request = https_connection
+            .receive_request()
+            .expect("Failed to receive HTTP request");
+        log::info!("Request:\n {:?}", request);
+
+        log::info!("Path: {}", request.path().unwrap_or("<no path>"));
+
+        let http_response = match request.path().unwrap_or("<no path>") {
+            "http://localhost/reboot" => {
+                let mut status = true;
+
+                // This function panic on native
+                // GUEST_VALID is not initialized in native environment
+                if let Err(e) = crate::protocols::core::invalidate_guest_pages() {
+                    log::info!("Failed to invalidate guest pages: {:?}", e);
+                    status = false;
+                }
+
+                // This function returns an error on native
+                if let Err(e) = crate::platform::SVSM_PLATFORM.relaunch_fw() {
+                    log::info!("Failed to relaunch firmware: {:?}", e);
+                    status = false;
+                }
+
+                let body = if status {
+                    b"Reboot command executed".to_vec()
+                } else {
+                    b"Reboot command failed".to_vec()
+                };
+                let content_length = body.len();
+
+                HttpResponseBuilder::new()
+                    .version(Some(1))
+                    .code(Some(200))
+                    .reason(Some("OK"))
+                    .header("Content-Type", "text/html")
+                    .header("Content-Length", &alloc::format!("{}", content_length))
+                    .body(body)
+                    .build()
+                    .expect("Failed to build HTTP response")
+            }
+            "http://localhost/get_log" => {
+                let log = crate::log_buffer::log_buffer().read_log();
+                let content_length = log.len();
+
+                HttpResponseBuilder::new()
+                    .version(Some(1))
+                    .code(Some(200))
+                    .reason(Some("OK"))
+                    .header("Content-Type", "text/html")
+                    .header("Content-Length", &alloc::format!("{}", content_length))
+                    .body(log.to_vec())
+                    .build()
+                    .expect("Failed to build HTTP response")
+            }
+            "http://localhost/close_connection" => {
+                let body = b"Connection will be closed".to_vec();
+                let content_length = body.len();
+
+                HttpResponseBuilder::new()
+                    .version(Some(1))
+                    .code(Some(200))
+                    .reason(Some("OK"))
+                    .header("Content-Type", "text/html")
+                    .header("Content-Length", &alloc::format!("{}", content_length))
+                    .body(body)
+                    .build()
+                    .expect("Failed to build HTTP response")
+            }
+            _ => {
+                let body = b"Unknown path".to_vec();
+                let content_length = body.len();
+
+                HttpResponseBuilder::new()
+                    .version(Some(1))
+                    .code(Some(404))
+                    .reason(Some("Not Found"))
+                    .header("Content-Type", "text/html")
+                    .header("Content-Length", &alloc::format!("{}", content_length))
+                    .body(body)
+                    .build()
+                    .expect("Failed to build HTTP response")
+            }
+        };
+
+        https_connection
+            .send_response(&http_response)
+            .expect("Failed to send HTTP response");
+
+        if let Some(conn_header) = request.headers().get("connection") {
+            if conn_header.to_lowercase() == "close" {
+                log::info!("Connection: close received, breaking the loop");
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(feature = "svsm-remote-console")]
+pub fn svsm_remote_console_server(cpu_index: usize) {
+    log::info!("Starting remote console server on {cpu_index}");
+
+    const IN_BUF_SIZE: usize = 16 * 1024;
+    const SERVER_DNS: &str = "localhost";
+    const REMOTE_PORT: u32 = 12345;
+    const REMOTE_CID: u64 = 2;
+    // ########################################################
+    // Creating HTTPS connection
+    // ########################################################
+    let mut https_connection = HttpsPeer::connect(
+        VsockStream::connect(REMOTE_PORT, REMOTE_CID).expect("Failed to connect to VsockStream"),
+        SERVER_DNS,
+        IN_BUF_SIZE * 3,
+    )
+    .expect("Failed to create HTTPS connection");
+
+    serve_request_loop(&mut https_connection);
+
+    // ########################################################
+    // Closing HTTPS connection
+    // ########################################################
+    https_connection
+        .close_connection()
+        .expect("Failed to close HTTPS connection");
+    // ########################################################
+    log::info!("HTTPS conversation completed.");
 }

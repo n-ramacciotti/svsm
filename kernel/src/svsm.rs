@@ -67,10 +67,6 @@ use release::COCONUT_VERSION;
 #[cfg(feature = "attest")]
 use kbs_types::Tee;
 
-#[cfg(feature = "tls")]
-use getrandom::register_custom_getrandom;
-#[cfg(feature = "tls")]
-use svsm::tls::random::custom_getrandom;
 #[cfg(feature = "vsock")]
 use svsm::vsock::virtio_vsock::initialize_vsock;
 
@@ -422,13 +418,18 @@ fn svsm_init() {
 
     #[cfg(not(test))]
     {
+        #[cfg(feature = "tls")]
+        use getrandom::register_custom_getrandom;
         use svsm::fs::opendir;
         use svsm::requests::request_loop_start;
+        #[cfg(feature = "svsm-remote-console")]
+        use svsm::requests::svsm_remote_console_server;
         use svsm::task::exec_user;
-        
-        log::info!("########################");
-        let log = svsm::log_buffer::log_buffer().read_log();
-        svsm::println!("SVSM Log Buffer:\n{}", String::from_utf8_lossy(&log));
+        #[cfg(feature = "tls")]
+        use svsm::tls::random::custom_getrandom;
+
+        #[cfg(feature = "tls")]
+        register_custom_getrandom!(custom_getrandom);
 
         match exec_user("/init", opendir("/").expect("Failed to find FS root")) {
             Ok(_) => (),
@@ -442,6 +443,21 @@ fn svsm_init() {
                 String::from("request-loop on CPU 0"),
             )
             .expect("Failed to launch request loop task");
+        } else {
+            // On native platform the function "start_svsm_request_loop" returns
+            // false. So it won't start the tls request loop. Enable it here
+            #[cfg(feature = "svsm-remote-console")]
+            {
+                start_kernel_task(
+                    KernelThreadStartInfo::new(svsm_remote_console_server, 0),
+                    String::from("Remote-console loop on cpu 0"),
+                )
+                .expect("Failed to launch request loop task");
+            }
+            #[cfg(not(feature = "svsm-remote-console"))]
+            {
+                log::info!("Remote-console feature disabled, not starting remote console");
+            }
         }
     }
 }

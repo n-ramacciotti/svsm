@@ -190,7 +190,7 @@ $SUDO_CMD \
     -object $MEMORY \
     $IGVM_OBJ \
     $SNP_GUEST \
-    -smp 4 \
+    -smp 5 \
     -no-reboot \
     $QEMU_NETDEV \
     $IMAGE_DISK \
