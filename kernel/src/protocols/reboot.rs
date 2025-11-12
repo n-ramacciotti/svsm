@@ -36,7 +36,7 @@ fn reboot_execute_request(params: &RequestParams) -> Result<(), SvsmReqError> {
     if params.rcx != 0 {
         request_termination_msr();
     }
-    invalidate_guest_pages();
+    invalidate_guest_pages()?;
     match crate::platform::SVSM_PLATFORM.relaunch_fw() {
         Ok(()) => Ok(()),
         Err(_) => request_termination_msr(),

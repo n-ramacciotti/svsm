@@ -513,8 +513,13 @@ fn core_remap_ca(params: &RequestParams) -> Result<(), SvsmReqError> {
     Ok(())
 }
 
-pub fn invalidate_guest_pages() {
-    let _ = invalidate_pages(&mut GUEST_VALID.lock_write());
+pub fn invalidate_guest_pages() -> Result<(), SvsmReqError> {
+    GUEST_VALID.try_get_inner()
+        .map_err(|e| {
+            log::info!("Failed to get GUEST_VALID bitmap: {:#?}", e);
+            SvsmReqError::FatalError(SvsmError::PlatformInit)
+        })?;
+    invalidate_pages(&mut GUEST_VALID.lock_write())
 }
 
 fn invalidate_pages(page_map: &mut RleBits) -> Result<(), SvsmReqError> {
