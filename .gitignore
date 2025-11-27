@@ -8,6 +8,7 @@ release/src/git_version.rs
 # signing test keys for IGVM
 # See `scripts/gen_igvm_signing_keys.sh` and `scripts/test_sign_qemu_igvm.sh`
 testkeys/
+certificates/
 
 # IDE/editors tmp files
 *.swp

@@ -23,6 +23,8 @@ use crate::block::BlockDeviceError;
 use crate::cpu::vc::VcError;
 use crate::fs::FsError;
 use crate::fw_cfg::FwCfgError;
+#[cfg(feature = "https")]
+use crate::https::http::error::HttpError;
 use crate::insn_decode::InsnError;
 use crate::mm::alloc::AllocError;
 use crate::sev::ghcb::GhcbError;
@@ -31,6 +33,8 @@ use crate::sev::SevSnpError;
 use crate::syscall::ObjError;
 use crate::task::TaskError;
 use crate::tdx::TdxError;
+#[cfg(feature = "tls")]
+use crate::tls::error::TlsError;
 #[cfg(feature = "virtio-drivers")]
 use crate::virtio::VirtioError;
 #[cfg(feature = "vsock")]
@@ -134,6 +138,12 @@ pub enum SvsmError {
     /// Errors related to vsock.
     #[cfg(feature = "vsock")]
     Vsock(VsockError),
+    // Errors related to TLS.
+    #[cfg(feature = "tls")]
+    Tls(TlsError),
+    /// Errors related to HTTP.
+    #[cfg(feature = "https")]
+    Http(HttpError),
 }
 
 impl From<ElfError> for SvsmError {
@@ -177,6 +187,20 @@ impl From<BlockDeviceError> for SvsmError {
 impl From<VsockError> for SvsmError {
     fn from(err: VsockError) -> Self {
         Self::Vsock(err)
+    }
+}
+
+#[cfg(feature = "tls")]
+impl From<TlsError> for SvsmError {
+    fn from(err: TlsError) -> Self {
+        Self::Tls(err)
+    }
+}
+
+#[cfg(feature = "https")]
+impl From<HttpError> for SvsmError {
+    fn from(err: HttpError) -> Self {
+        Self::Http(err)
     }
 }
 

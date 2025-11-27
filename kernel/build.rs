@@ -40,6 +40,7 @@ fn main() {
     println!("cargo:rerun-if-changed=kernel/src/svsm.lds");
     println!("cargo:rerun-if-changed=build.rs");
     init_verify();
+    insert_ca_cert();
 }
 
 fn init_verify() {
@@ -55,5 +56,34 @@ fn init_verify() {
             "-Z unstable-options",
         ];
         println!("cargo:rustc-env=VERUS_ARGS={}", verus_args.join(" "));
+    }
+}
+
+fn insert_ca_cert() {
+    if cfg!(not(feature = "tls")) {
+        return;
+    }
+
+    let ca_cert_path = std::path::Path::new(std::env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("Failed to get parent directory")
+        .join("certificates")
+        .join("ca.der");
+    if ca_cert_path.exists() {
+        return;
+    }
+
+    let script_path = std::path::Path::new(std::env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("Failed to get parent directory")
+        .join("scripts")
+        .join("gen_certs.sh");
+
+    let status = std::process::Command::new("sh")
+        .arg(&script_path)
+        .status()
+        .expect("Failed to execute process");
+    if !status.success() {
+        panic!("CA cert generation script failed");
     }
 }

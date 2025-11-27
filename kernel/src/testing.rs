@@ -42,6 +42,8 @@ pub enum IORequest {
     GetStateImageSha256 = 0x02,
     /// Virtio-vsock tests: Ask host to start a vsock server
     StartVsockServer = 0x03,
+    /// Tls tests: Ask host to start a tls server
+    StartTlsServer = 0x04,
 }
 
 /// Return the serial port to communicate with the host for a given request

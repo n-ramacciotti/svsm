@@ -65,6 +65,10 @@ use release::COCONUT_VERSION;
 #[cfg(feature = "attest")]
 use kbs_types::Tee;
 
+#[cfg(feature = "tls")]
+use getrandom::register_custom_getrandom;
+#[cfg(feature = "tls")]
+use svsm::tls::random::custom_getrandom;
 #[cfg(feature = "vsock")]
 use svsm::vsock::virtio_vsock::initialize_vsock;
 
@@ -395,6 +399,33 @@ fn svsm_init() {
 
     if let Err(e) = SVSM_PLATFORM.launch_fw(&config) {
         panic!("Failed to launch FW: {e:?}");
+    }
+
+    #[cfg(feature = "tls")]
+    {
+        // Register the custom getrandom implementation for SVSM
+        // This is required for TLS to work
+        // TLS library uses (for the moment) getrandom crate
+        // This is not the final implementation, just a placeholder
+        register_custom_getrandom!(custom_getrandom);
+        #[cfg(feature = "client")]
+        {
+            log::info!("Starting TLS client tests...");
+            use svsm::tls::examples::test_tls;
+            test_tls();
+            #[cfg(feature = "https")]
+            {
+                log::info!("Starting HTTPS client tests...");
+                use svsm::https::examples::test_https_as_client;
+                test_https_as_client();
+            }
+        }
+        #[cfg(all(feature = "server", feature = "https"))]
+        {
+            log::info!("Starting TLS server tests...");
+            use svsm::https::examples::test_https_as_server;
+            test_https_as_server();
+        }
     }
 
     #[cfg(test)]

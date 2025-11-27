@@ -25,6 +25,8 @@ pub mod error;
 pub mod fs;
 pub mod fw_cfg;
 pub mod greq;
+#[cfg(feature = "https")]
+pub mod https;
 pub mod hyperv;
 pub mod igvm_params;
 pub mod insn_decode;
@@ -41,6 +43,8 @@ pub mod svsm_paging;
 pub mod syscall;
 pub mod task;
 pub mod tdx;
+#[cfg(feature = "tls")]
+pub mod tls;
 pub mod types;
 pub mod utils;
 #[cfg(feature = "virtio-drivers")]

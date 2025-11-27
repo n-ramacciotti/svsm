@@ -8,6 +8,7 @@
 set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PYTHON_SCRIPT="$SCRIPT_DIR/python/web_server.py"
 
 test_io(){
     PIPE_IN=$1
@@ -31,6 +32,14 @@ test_io(){
             "03")
               # virtio-vsock in svsm does not handle half duplex connections.
               echo -n "hello_world" | ncat --no-shutdown -l --vsock -p 12345 &
+              sleep 1
+              echo -n "0" > $PIPE_IN
+              ;;
+            # 0x04 Tls test: start a local tls server and notify svsm to connect to it via vsock
+            "04")
+              socat VSOCK-LISTEN:12346 TCP:localhost:4433 > /dev/null 2>&1 &
+              sleep 1
+              $PYTHON_SCRIPT > /dev/null 2>&1 & # fix address already in use?
               sleep 1
               echo -n "0" > $PIPE_IN
               ;;
@@ -87,6 +96,11 @@ if [[ $svsm_exit_code -eq 0x21 ]]; then
 else
     echo "Test Failed"
     exit_value=1
+fi
+
+PYTHON_PID=$(pgrep -f "$PYTHON_SCRIPT" || true)
+if [[ -n "$PYTHON_PID" ]]; then
+    kill $PYTHON_PID 2> /dev/null || true
 fi
 
 kill $TEST_IO_PID 2> /dev/null || true
