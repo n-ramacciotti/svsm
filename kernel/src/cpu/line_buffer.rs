@@ -68,7 +68,7 @@ impl log::Log for BufferLogger {
 
     fn log(&self, record: &log::Record<'_>) {
         let comp: &'static str = self.component;
-        let Ok(mut line_buf ) = this_cpu().get_line_buffer() else {
+        let Ok(mut line_buf) = this_cpu().get_line_buffer() else {
             _print(format_args!("Errore durante il borrow"));
             panic!("prova")
         };

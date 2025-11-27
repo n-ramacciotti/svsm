@@ -1189,7 +1189,9 @@ impl PerCpu {
 
     pub fn get_line_buffer(&self) -> Result<RefMut<'_, LineBuffer>, SvsmError> {
         //self.ln_buf.borrow_mut()
-        self.ln_buf.try_borrow_mut().map_err( |_| SvsmError::NotSupported)
+        self.ln_buf
+            .try_borrow_mut()
+            .map_err(|_| SvsmError::NotSupported)
     }
 }
 

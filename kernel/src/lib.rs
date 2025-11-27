@@ -41,6 +41,7 @@ pub mod protocols;
 pub mod requests;
 pub mod serial;
 pub mod sev;
+pub mod string;
 pub mod svsm_paging;
 pub mod syscall;
 pub mod task;
@@ -49,7 +50,6 @@ pub mod tdx;
 pub mod tls;
 pub mod types;
 pub mod utils;
-pub mod string;
 #[cfg(feature = "virtio-drivers")]
 pub mod virtio;
 pub mod vmm;

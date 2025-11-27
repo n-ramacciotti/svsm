@@ -19,7 +19,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 #[cfg(not(test))]
-const BUF_SIZE: usize = 4 * PAGE_SIZE / core::mem::size_of::<char>();
+const BUF_SIZE: usize = PAGE_SIZE / core::mem::size_of::<char>();
 #[cfg(test)]
 const BUF_SIZE: usize = 64;
 

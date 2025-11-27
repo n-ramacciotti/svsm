@@ -26,15 +26,15 @@ use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
 use svsm::cpu::flush_tlb_percpu;
 use svsm::cpu::gdt::GLOBAL_GDT;
 use svsm::cpu::idt::stage2::{early_idt_init, early_idt_init_no_ghcb};
-use svsm::cpu::line_buffer::install_buffer_logger;
 use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
+use svsm::cpu::line_buffer::install_buffer_logger;
 use svsm::cpu::percpu::{this_cpu, PerCpu, PERCPU_AREAS};
 use svsm::debug::stacktrace::print_stack;
 use svsm::error::SvsmError;
 use svsm::igvm_params::IgvmParams;
-use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init, AllocError};
 use svsm::log_buffer::get_lb;
 use svsm::migrate::MigrateInfo;
+use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init, AllocError};
 use svsm::mm::pagetable::{paging_init, PTEntryFlags, PageTable};
 use svsm::mm::validate::{
     init_valid_bitmap_alloc, valid_bitmap_addr, valid_bitmap_set_valid_range,

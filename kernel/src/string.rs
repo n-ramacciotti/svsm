@@ -64,7 +64,7 @@ impl<const N: usize> From<[u8; N]> for FixedString<N> {
             }
             d.write(val as char);
         }
-
+        // SAFETY: 
         let data = unsafe { *(data.as_ptr().cast::<[char; N]>()) };
         FixedString { data, len }
     }

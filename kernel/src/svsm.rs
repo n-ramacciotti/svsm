@@ -23,12 +23,12 @@ use svsm::cpu::cpuid::{dump_cpuid_table, register_cpuid_table};
 use svsm::cpu::gdt::GLOBAL_GDT;
 use svsm::cpu::idt::svsm::{early_idt_init, idt_init};
 use svsm::cpu::idt::{IdtEntry, EARLY_IDT_ENTRIES, IDT};
-use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu,  PerCpu, PERCPU_AREAS};
+use svsm::cpu::line_buffer::install_buffer_logger;
+use svsm::cpu::percpu::{cpu_idle_loop, this_cpu, try_this_cpu, PerCpu, PERCPU_AREAS};
 use svsm::cpu::shadow_stack::{
     determine_cet_support, is_cet_ss_supported, set_cet_ss_enabled, shadow_stack_info, SCetFlags,
     MODE_64BIT, S_CET,
 };
-use svsm::cpu::line_buffer::install_buffer_logger;
 use svsm::cpu::smp::start_secondary_cpus;
 use svsm::cpu::sse::sse_init;
 use svsm::debug::gdbstub::svsm_gdbstub::{debug_break, gdbstub_start};
@@ -404,33 +404,6 @@ fn svsm_init() {
 
     if let Err(e) = SVSM_PLATFORM.launch_fw(&config) {
         panic!("Failed to launch FW: {e:?}");
-    }
-
-    #[cfg(feature = "tls")]
-    {
-        // Register the custom getrandom implementation for SVSM
-        // This is required for TLS to work
-        // TLS library uses (for the moment) getrandom crate
-        // This is not the final implementation, just a placeholder
-        register_custom_getrandom!(custom_getrandom);
-        #[cfg(feature = "client")]
-        {
-            log::info!("Starting TLS client tests...");
-            use svsm::tls::examples::test_tls;
-            test_tls();
-            #[cfg(feature = "https")]
-            {
-                log::info!("Starting HTTPS client tests...");
-                use svsm::https::examples::test_https_as_client;
-                test_https_as_client();
-            }
-        }
-        #[cfg(all(feature = "server", feature = "https"))]
-        {
-            log::info!("Starting TLS server tests...");
-            use svsm::https::examples::test_https_as_server;
-            test_https_as_server();
-        }
     }
 
     #[cfg(test)]

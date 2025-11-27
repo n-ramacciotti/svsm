@@ -8,8 +8,8 @@ pub mod bitmap_allocator;
 pub mod immut_after_init;
 pub mod memory_region;
 pub mod scoped;
-pub mod tcb_ptr;
 pub mod string_ring_buffer;
+pub mod tcb_ptr;
 pub mod util;
 pub mod vec;
 
