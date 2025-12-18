@@ -15,6 +15,15 @@ use core::ffi::c_char;
 use syscall::SysCallError;
 
 pub fn sys_exit(exit_code: u32) -> ! {
+    #[cfg(all(test, test_in_svsm))]
+    {
+        // TODO: instead of exiting here, we should save the exit
+        // code and decide after wait_for_termination is called
+        if exit_code != 0 {
+            use crate::testing::QEMUExitValue;
+            crate::testing::exit(QEMUExitValue::Fail);
+        }
+    }
     log::info!(
         "Terminating task {}, exit_code {exit_code}",
         current_task().get_task_name()

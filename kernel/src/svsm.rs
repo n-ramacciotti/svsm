@@ -37,7 +37,7 @@ use svsm::debug::gdbstub::svsm_gdbstub::{debug_break, gdbstub_start};
 use svsm::debug::stacktrace::print_stack;
 use svsm::debug::symbols::init_symbols;
 use svsm::enable_shadow_stacks;
-#[cfg(feature = "virtio-drivers")]
+#[cfg(any(feature = "virtio-drivers", test))]
 use svsm::error::SvsmError;
 use svsm::fs::{initialize_fs, populate_ram_fs};
 use svsm::hyperv::hyperv_setup;
@@ -629,7 +629,42 @@ fn test_in_svsm_task(_context: usize) {
     // tests in the kernel crate collected during compilation.
     crate::kernel_tests_in_svsm();
 
+    if let Err(_) = user_tests_in_svsm() {
+        exit(QEMUExitValue::Fail);
+    }
+
+    log::info!("All tests passed!");
+
     exit(QEMUExitValue::Success);
+}
+
+#[cfg(test)]
+fn user_tests_in_svsm() -> Result<(), SvsmError> {
+    use svsm::fs::{list_dir, opendir};
+    use svsm::task::{exec_user, wait_for_termination};
+
+    // [RFC] What is a good way of identifying all
+    // userspace binaries? What about
+    // a file which lists all the modules that
+    // should be tested
+    let files = list_dir("").unwrap();
+    log::info!("Files: {:?}", files);
+
+    for file in files {
+        match exec_user(file.as_ref(), opendir("/").unwrap()) {
+            Ok(task) => {
+                wait_for_termination(task);
+                // TODO: check the exit status of the task
+                // and return an error if it is a failure
+            }
+            Err(e) => {
+                log::error!("Failed to launch {file}: {e:?}");
+                return Err(e);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[panic_handler]
