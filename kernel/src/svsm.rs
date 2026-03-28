@@ -569,6 +569,8 @@ fn svsm_init(launch_info: &KernelLaunchInfo) {
             Err(e) => log::info!("Failed to launch /init: {e:?}"),
         }
 
+        log::info!("prova");
+
         // Start request processing on this CPU if required.
         if SVSM_PLATFORM.start_svsm_request_loop() {
             start_kernel_task(
