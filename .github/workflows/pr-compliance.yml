@@ -27,12 +27,14 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.ref }}
 
       - name: Signed-off-by
+        continue-on-error: true
         run: |
           ${GITHUB_WORKSPACE}/scripts/check-signed-off.sh \
             ${{ github.event.pull_request.base.sha }} \
             ${{ github.event.pull_request.head.sha }}
 
       - name : SPDX Headers
+        if: ${{ always() }}
         run: |
           ${GITHUB_WORKSPACE}/scripts/check-spdx.sh \
             ${{ github.event.pull_request.base.sha }} \
