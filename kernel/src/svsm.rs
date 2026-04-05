@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
-//
-// Copyright (c) 2022-2023 SUSE LLC
-//
-// Author: Joerg Roedel <jroedel@suse.de>
 
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
