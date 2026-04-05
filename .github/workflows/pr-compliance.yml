@@ -33,6 +33,11 @@ jobs:
             ${{ github.event.pull_request.head.sha }}
 
       - name : SPDX Headers
+        # This step will always run unless it is cancelled.
+        # This is necessary for the case that `signed-off`
+        # fails, but we want to check also this step.
+        # This will highlights better the error in the CI.
+        if: ${{ !cancelled() }}
         run: |
           ${GITHUB_WORKSPACE}/scripts/check-spdx.sh \
             ${{ github.event.pull_request.base.sha }} \
