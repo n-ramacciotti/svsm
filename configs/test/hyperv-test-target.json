@@ -15,7 +15,7 @@
     "kernel": {
         "svsm": {
             "type": "make",
-            "output_file": "bin/test-kernel.elf"
+            "output_file": "bin/test-svsm.elf"
         },
         "bldr": {
             "manifest": "boot/bldr/Cargo.toml",
