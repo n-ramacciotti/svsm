@@ -55,7 +55,7 @@ pub mod vsock;
 pub mod vtpm;
 
 #[test]
-fn test_nop() {}
+fn test_nop() {assert!(false);}
 
 // When running tests inside the SVSM:
 // Build the kernel entrypoint.
