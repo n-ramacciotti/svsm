@@ -8,20 +8,11 @@ set -u
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
-# When we see this string on the serial output, consider
-# SVSM booted and the test passed.
-SUCCESS="All tests passed"
-
 # Fail the test after this timeout
 TIMEOUT=180s
 
-# Clone STDOUT for live log reporting
-exec 3>&1
-
 echo "================================================================================"
-timeout $TIMEOUT \
-  grep -q -m 1 "$SUCCESS" \
-  <("$SCRIPT_DIR/test-in-svsm.sh" --nocc "$@" </dev/null 2>&1 | tee /proc/self/fd/3)
+timeout $TIMEOUT "$SCRIPT_DIR/test-in-svsm.sh" --nocc "$@" </dev/null 2>&1
 RES=$?
 echo "================================================================================"
 
@@ -29,6 +20,10 @@ case $RES in
 0)
   echo "Test Pass!"
   exit 0
+  ;;
+1)
+  echo "Test failed"
+  exit 1
   ;;
 124)
   echo "Test failed: timeout"
