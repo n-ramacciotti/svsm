@@ -96,6 +96,9 @@ mkfifo $TEST_DIR/pipe.out
 dd if=/dev/urandom of="$TEST_DIR/svsm_state.raw" bs=512 count=1024
 
 LAUNCH_GUEST_ARGS=""
+TIMEOUT_ENABLED=0
+TIMEOUT_SECONDS=""
+MAX_TIMEOUT_SECONDS=600
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -113,6 +116,20 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --timeout)
+      TIMEOUT_ENABLED=1
+      TIMEOUT_SECONDS="$2"
+      if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+        echo "Error: $TIMEOUT_SECONDS is not a valid number of seconds"
+        exit 1
+      fi
+      if [[ "$TIMEOUT_SECONDS" -gt "$MAX_TIMEOUT_SECONDS" ]]; then
+        echo "Error: $TIMEOUT_SECONDS exceeds max ($MAX_TIMEOUT_SECONDS)"
+        exit 1
+      fi
+      shift
+      shift
+      ;;
     --)
       shift
       break
@@ -124,22 +141,35 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ $TIMEOUT_ENABLED -eq 1 ]]; then
+    echo "Running tests with timeout: $TIMEOUT_SECONDS"
+    TIMEOUT_CMD="timeout --foreground $TIMEOUT_SECONDS"
+else
+    echo "Running tests without timeout"
+    TIMEOUT_CMD=""
+fi
+
 test_io $TEST_DIR/pipe.in $TEST_DIR/pipe.out $VSOCK_PORT &
 TEST_IO_PID=$!
 
 svsm_exit_code=0
 
-$SCRIPT_DIR/launch_guest.sh --igvm $SCRIPT_DIR/../bin/coconut-test-qemu.igvm \
-    --state "$TEST_DIR/svsm_state.raw" \
-    --vsock "$VSOCK_CID" \
-    --unit-tests $TEST_DIR/pipe \
-    $LAUNCH_GUEST_ARGS "$@" || svsm_exit_code=$?
+$TIMEOUT_CMD \
+    $SCRIPT_DIR/launch_guest.sh \
+        --igvm $SCRIPT_DIR/../bin/coconut-test-qemu.igvm \
+        --state "$TEST_DIR/svsm_state.raw" \
+        --vsock "$VSOCK_CID" \
+        --unit-tests $TEST_DIR/pipe \
+        $LAUNCH_GUEST_ARGS "$@" || svsm_exit_code=$?
 
 # SVSM writes 0x10 to the QEMU exit port when all tests passed.
 # This results in QEMU returning 0x21 ((0x10 << 1) | 1)
 if [[ $svsm_exit_code -eq 0x21 ]]; then
     echo "All tests passed"
     exit_value=0
+elif [[ $svsm_exit_code -eq 124 && $TIMEOUT_ENABLED -eq 1 ]]; then
+    echo "Test Failed: timeout"
+    exit_value=1
 else
     echo "Test Failed with exit code: $svsm_exit_code"
     exit_value=1
