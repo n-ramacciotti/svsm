@@ -42,15 +42,16 @@ fi
 start=$1
 end=$2
 
+invalid_checks=0
+
 commits=$(git log --no-merges "${start}".."${end}" --format="%H")
 for c in ${commits[@]}; do
-
 	echo "Checking $c"
 
 	nonempty_body "$c"
 	if [ "$?" != "0" ]; then
-		echo "Message body is empty for commit $c"
-		exit 1
+		echo "Message body is empty"
+		invalid_checks=$((invalid_checks + 1))
 	fi
 
 	commit_email=$(git show --no-patch --format="%ae" "$c" || exit 1)
@@ -60,20 +61,27 @@ for c in ${commits[@]}; do
 
 	matches_any "$commit_name" "$sign_names"
 	if [ "$?" != "0" ]; then
-		echo "Author name mismatch on commit $c"
+		echo "Author name mismatch"
 		echo "    Commit author name: $commit_name"
 		echo "    Signed-off-by name(s):" $sign_names
-		exit 1
+		invalid_checks=$((invalid_checks + 1))
 	fi
 
 	matches_any "$commit_email" "$sign_emails"
 	if [ "$?" != "0" ]; then
-		echo "Author email mismatch on commit $c"
+		echo "Author email mismatch"
 		echo "    Commit author email: $commit_email"
 		echo "    Signed-off-by email(s):" $sign_emails
-		exit 1
+		invalid_checks=$((invalid_checks + 1))
 	fi
 
+	echo "================================================="
 done
 
+if (($invalid_checks > 0)); then
+	echo "Exiting with $invalid_checks failed checks"
+	exit 1;
+fi
+
+echo "All commits have a Signed-off-by and a non-empty body"
 exit 0
