@@ -23,11 +23,11 @@ matches_any() {
 
 # Check that the body for the given commit is not empty
 nonempty_body() {
-	body=$(git show --no-patch --format="%b" "$1" | sed '/^ *$/d')
+	body=$(git show --no-patch --format="%b" "$1")
 	trailers=$(git show --no-patch --format="%(trailers:only)" "$1")
 
-	body_len=$(echo "$body" | wc -l)
-	trailer_len=$(echo "$trailers" | wc -l)
+	body_len=$(echo "$body" | sed '/^ *$/d' | wc -l)
+	trailer_len=$(echo "$trailers" | sed '/^ *$/d' | wc -l)
 
 	# If the body is the same length as the trailers it means the body is empty
 	[ "$body_len" = "$trailer_len" ] && return 1
