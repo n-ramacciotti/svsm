@@ -503,6 +503,7 @@ pub fn common_isr_handler(vector: usize) {
             // because although it is a known and expected interrupt, it has
             // no handler; it exists simply to provide a mechanism to work from
             // idle for scheduling purposes.
+            log::info!("Received interrupt vector {vector:#x} - treating as spurious on CPU {}", cpu.get_cpu_index());
         }
     }
 
