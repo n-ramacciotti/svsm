@@ -603,7 +603,6 @@ pub unsafe fn update_task_percpu_page_tables(t: *const Task) {
 pub fn schedule() {
     // check if preemption is safe
     preemption_checks();
-
     select_new_task(true, None);
 }
 
@@ -619,6 +618,7 @@ fn select_new_task(reschedule: bool, irq_guard: Option<IrqGuard>) {
 
     // !!! Runqueue lock must be released here !!!
     let prev_task = if let Some((current, next)) = work {
+        log::info!("Scheduling new task {} on CPU {}", next.get_task_name().clone(), this_cpu().get_cpu_index());
         // Ensure that the current stack bounds of the current CPU are adjusted
         // to reflect the task being scheduled.
         this_cpu().set_current_stack(next.stack_bounds());
