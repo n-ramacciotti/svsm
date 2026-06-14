@@ -1187,4 +1187,11 @@ mod tests {
             asm!("call alter_fpu", options(att_syntax));
         }
     }
+
+    #[test]
+    #[cfg_attr(not(test_in_svsm), ignore = "Can only be run inside guest")]
+    fn test_nop_test() {
+        assert_eq!(1, 1);        
+    }
+
 }
