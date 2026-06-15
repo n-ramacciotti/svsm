@@ -2329,6 +2329,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "userdummy"
+version = "0.1.0"
+dependencies = [
+ "test",
+ "userlib",
+]
+
+[[package]]
 name = "userinit"
 version = "0.1.0"
 dependencies = [

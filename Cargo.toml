@@ -30,6 +30,8 @@ members = [
     "user/lib",
     # Init user-space module
     "user/init",
+    # Test user-space module
+    "user/dummy",
     # Release version identifier
     "release",
     # crate for verification stubs
@@ -64,6 +66,7 @@ syscall = { path = "syscall" }
 packit = { path = "packit" }
 userlib = { path = "user/lib" }
 userinit = { path = "user/init" }
+userdummy = { path = "user/dummy" }
 release = { path = "release" }
 virtio-drivers = { git = "https://github.com/coconut-svsm/virtio-drivers.git", rev = "dcbdbc8cefc0c985322382acdeb633a63a3a4cc1" }
 
