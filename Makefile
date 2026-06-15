@@ -159,6 +159,15 @@ bin/test-kernel.elf: bin
 		--target=x86_64-unknown-none \
 		--config 'target.x86_64-unknown-none.runner=["sh", "-c", "cp $$0 ../$@"]'
 
+# Root of SVSM
+MAKEFILE_DIR = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+TEST_IN_SVSM_USERMODULES = userdummy
+TEST_IN_SVSM_TARGETS = $(TEST_IN_SVSM_USERMODULES:%=bin/test-%.elf)
+
+$(TEST_IN_SVSM_TARGETS): bin
+	make -C $(MAKEFILE_DIR)/user $@
+
 ${FS_BIN}: bin
 ifneq ($(FS_FILE), none)
 	cp -f $(FS_FILE) ${FS_BIN}
@@ -191,4 +200,4 @@ clean:
 
 distclean: clean
 
-.PHONY: test miri clean clippy bin/bldr.bin bin/svsm-kernel.elf bin/test-kernel.elf stage1_elf_trampoline distclean $(APROXYBIN) $(IGVM_FILES) $(IGVM_TEST_FILES)
+.PHONY: test miri clean clippy bin/bldr.bin bin/svsm-kernel.elf bin/test-kernel.elf stage1_elf_trampoline distclean $(APROXYBIN) $(IGVM_FILES) $(IGVM_TEST_FILES) $(TEST_IN_SVSM_TARGETS)

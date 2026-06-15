@@ -28,6 +28,12 @@
     },
     "firmware": {},
     "fs": {
-        "modules": {}
+        "modules": {
+            "userdummy": {
+                "path": "/dummy",
+                "type": "make",
+                "output_file": "bin/test-userdummy.elf"
+            }
+        }
     }
 }
