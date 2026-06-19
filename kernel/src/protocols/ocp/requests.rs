@@ -20,10 +20,11 @@ use crate::{
 
 use super::source::{OCP_NAME_LEN, OCP_SOURCE_SIZE, OcpSource};
 
-use core::ffi::CStr;
+use core::{ffi::CStr, str};
 
 // OCP protocol services
 const SVSM_OCP_LIST: u32 = 0;
+const SVSM_OCP_READ: u32 = 1;
 
 const LOW_32_BITS: u64 = 0xffff_ffff;
 const OCP_BUFFER_MAX_SIZE: usize = PAGE_SIZE;
@@ -153,9 +154,76 @@ fn ocp_list_request(params: &mut RequestParams) -> Result<(), SvsmReqError> {
     Ok(())
 }
 
+fn extract_obj_and_source_names(buffer: &[u8]) -> Result<(&str, &str), SvsmReqError> {
+    let ocp_id =
+        CStr::from_bytes_until_nul(buffer).map_err(|_| SvsmReqError::invalid_parameter())?;
+
+    let bytes = ocp_id.to_bytes();
+
+    let slash_pos = bytes
+        .iter()
+        .position(|&c| c == b'/')
+        .ok_or(SvsmReqError::invalid_parameter())?;
+
+    let obj_name =
+        str::from_utf8(&bytes[..slash_pos]).map_err(|_| SvsmReqError::invalid_parameter())?;
+
+    let source_name =
+        str::from_utf8(&bytes[slash_pos + 1..]).map_err(|_| SvsmReqError::invalid_parameter())?;
+
+    Ok((obj_name, source_name))
+}
+
+fn ocp_read_request(params: &mut RequestParams) -> Result<(), SvsmReqError> {
+    let gpa_buffer = PhysAddr::from(params.rdx);
+
+    if !gpa_buffer.is_aligned(OCP_BUFFER_ALIGNMENT) {
+        return Err(SvsmReqError::invalid_address());
+    }
+
+    let gpa_id = PhysAddr::from(params.rcx);
+    let bytes_to_read = (params.r8 & LOW_32_BITS) as u32;
+    let offset = (params.r9 & LOW_32_BITS) as u32;
+
+    if bytes_to_read as usize > OCP_BUFFER_MAX_SIZE {
+        return Err(SvsmReqError::invalid_parameter());
+    }
+
+    let mut id_slice = [0u8; OCP_NAME_LEN * 2];
+
+    let id_guard = PerCPUPageMappingGuard::create(
+        gpa_id.page_align(),
+        gpa_id
+            .checked_add(OCP_NAME_LEN * 2)
+            .ok_or(SvsmReqError::invalid_address())?
+            .page_align_up(),
+        0,
+    )?;
+    let id_ptr = id_guard.guest_slice::<u8>(gpa_id.page_offset(), OCP_NAME_LEN * 2)?;
+    id_ptr.read_to_slice(&mut id_slice)?;
+
+    let (obj_name, source_name) = extract_obj_and_source_names(&id_slice)?;
+
+    let Some(object) = get_ocp_object(obj_name) else {
+        return Err(SvsmReqError::invalid_parameter());
+    };
+
+    if bytes_to_read == 0 {
+        params.r8 = 0;
+        return Ok(());
+    }
+
+    let bytes_copied = object.read(offset, gpa_buffer, bytes_to_read, source_name)?;
+
+    params.r8 = bytes_copied as u64;
+
+    Ok(())
+}
+
 pub fn ocp_protocol_request(request: u32, params: &mut RequestParams) -> Result<(), SvsmReqError> {
     match request {
         SVSM_OCP_LIST => ocp_list_request(params),
+        SVSM_OCP_READ => ocp_read_request(params),
         _ => Err(SvsmReqError::unsupported_call()),
     }
 }
