@@ -11,4 +11,7 @@ pub mod map;
 pub mod requests;
 pub mod source;
 
-pub use requests::ocp_protocol_request;
+pub use requests::{
+    OBSERVABILITY_CONFIGURATION_PROTOCOL_VERSION_MAX,
+    OBSERVABILITY_CONFIGURATION_PROTOCOL_VERSION_MIN, ocp_protocol_request,
+};
