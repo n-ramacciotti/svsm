@@ -11,6 +11,9 @@ pub mod map;
 pub mod requests;
 pub mod source;
 
+// test module
+pub mod svsm_object;
+
 pub use requests::{
     OBSERVABILITY_CONFIGURATION_PROTOCOL_VERSION_MAX,
     OBSERVABILITY_CONFIGURATION_PROTOCOL_VERSION_MIN, ocp_protocol_request,
