@@ -7,4 +7,5 @@
 //! OCP protocol implementation (SVSM draft spec).
 
 pub mod api;
+pub mod map;
 pub mod source;
