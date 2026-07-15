@@ -7,4 +7,7 @@
 //! OCP protocol implementation (SVSM draft spec).
 
 pub mod api;
+pub mod requests;
 pub mod source;
+
+pub use requests::add_ocp_object;
