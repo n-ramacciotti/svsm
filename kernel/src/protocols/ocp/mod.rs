@@ -8,4 +8,7 @@
 
 pub mod api;
 pub mod map;
+pub mod requests;
 pub mod source;
+
+pub use requests::ocp_protocol_request;
