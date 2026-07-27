@@ -28,3 +28,9 @@ pub fn get_ocp_object(name: &str) -> Option<Arc<dyn OcpObjectOperations>> {
     }
     None
 }
+
+pub fn ocp_protocol_request(request: u32, params: &mut RequestParams) -> Result<(), SvsmReqError> {
+    match request {
+        _ => Err(SvsmReqError::unsupported_call()),
+    }
+}
